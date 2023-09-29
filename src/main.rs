@@ -47,6 +47,9 @@ fn main() {
     router3
         .propose_raft_command(Command::Del(b"key3".to_vec()))
         .unwrap();
+     router3
+        .propose_raft_command(Command::Put(b"key4".to_vec(), b"val4".to_vec()))
+        .unwrap();
 
     //
     // test a transfer leader

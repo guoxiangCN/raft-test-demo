@@ -82,6 +82,21 @@ impl Command {
         }
         bytes
     }
+
+    pub fn from_bytes(data: &[u8]) -> crate::errors::Result<Command> {
+        match data[0] {
+            0 => Ok(Command::Del(data[1..].to_vec())),
+            1 => {
+                // use bytes::
+                let d = &data[1..];
+                let keylen = u64::from_be_bytes(d[..8].try_into().unwrap()) as usize;
+                let key = d[..keylen].to_vec();
+                let val = d[keylen..].to_vec();
+                Ok(Command::Put(key, val))
+            }
+            _ => panic!(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +126,9 @@ pub struct KvServer {
     inbound_raft_message_rx: Receiver<Message>, // !Sync
 
     pub route_table: Option<HashMap<u64, Sender<Message>>>,
+
+    // kv store
+    kvstore: crossbeam_skiplist::SkipMap<Vec<u8>, Vec<u8>>,
 }
 
 impl KvServer {
@@ -135,6 +153,7 @@ impl KvServer {
                 proposer_rx: rx,
                 inbound_raft_message_rx: raft_msg_rx,
                 route_table: None,
+                kvstore: crossbeam_skiplist::SkipMap::new(),
             },
             RaftRouter {
                 proposer_tx: tx,
@@ -243,10 +262,22 @@ impl KvServer {
                     for ent in entries {
                         // println!("Apply: entry : {:?}", ent);
                         if ent.entry_type == EntryType::EntryNormal {
-                            println!(
-                                "node_id: {} to apply  entry: {:?}",
-                                self.server_config.run_id, ent
-                            );
+                            if ent.get_data().is_empty() {
+                                println!("Empty entry after election ok, skip apply");
+                                continue;
+                            }
+                            let cmd = Command::from_bytes(ent.get_data())
+                                .expect("failed to convert entry.data to Command");
+                            match cmd {
+                                Command::Put(k, v) => {
+                                    self.kvstore.insert(k, v);
+                                    println!("node_id: {} apply a PUT", self.server_config.run_id);
+                                }
+                                Command::Del(k) => {
+                                    self.kvstore.remove(&k);
+                                    println!("node_id: {} apply a DEL", self.server_config.run_id);
+                                }
+                            }
                         } else if ent.entry_type == EntryType::EntryConfChange {
                             let ref data = ent.data;
                             let cc: ConfChange = ConfChange::parse_from_bytes(data).unwrap();
