@@ -1,5 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
+use raft::prelude::Message;
 use server::{Command, KvServer, ServerConfig};
 
 pub mod errors;
@@ -46,6 +47,24 @@ fn main() {
     router3
         .propose_raft_command(Command::Del(b"key3".to_vec()))
         .unwrap();
+
+    //
+    // test a transfer leader
+    for x in 0..100 {
+        let to = x % 3 + 1;
+        std::thread::sleep(Duration::from_secs(8));
+        println!("start to try transfer leader to {}...................", to);
+        let mut msg = Message::new();
+        msg.set_msg_type(raft::prelude::MessageType::MsgTransferLeader);
+        match to {
+            1 => &router1,
+            2 => &router2,
+            3 => &router3,
+            _ => panic!(),
+        }
+        .accept_raft_msg(msg)
+        .unwrap();
+    }
 
     jh1.join().unwrap();
     jh2.join().unwrap();

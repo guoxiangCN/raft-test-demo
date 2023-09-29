@@ -9,7 +9,7 @@ use protobuf::Message as PbMessage;
 use raft::{
     prelude::{ConfChange, EntryType, HardState, Message, MessageType},
     storage::MemStorage,
-    Config, Peer, Raft, RawNode,
+    Config, Peer, Raft, RaftState, RawNode, StateRole,
 };
 
 use crate::errors::Error;
@@ -118,7 +118,7 @@ impl KvServer {
         let mut raft_config = Config::default();
         raft_config.id = server_config.run_id;
         raft_config.heartbeat_tick = 10; // aka 1s
-        raft_config.election_tick = 30;  // aka 3s
+        raft_config.election_tick = 30; // aka 3s
 
         let raft_store = MemStorage::new();
         let peers = server_config.to_peers();
@@ -205,11 +205,10 @@ impl KvServer {
                 }
 
                 if let Some(ref ss) = ready.ss {
-                    // println!(
-                    //     "node_id: {} SoftState: leader:{}, role:{:?}",
-                    //     self.server_config.run_id,
-                    //     ss.leader_id, ss.raft_state
-                    // );
+                    if ss.raft_state == StateRole::Leader {
+                        assert_eq!(ss.leader_id, self.server_config.run_id);
+                        println!("node_id: {} became leader", self.server_config.run_id);
+                    }
                 }
 
                 // 需要被保存到本地的entry, 目前只保存在raft的unstable中
