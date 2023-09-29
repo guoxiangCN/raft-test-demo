@@ -67,6 +67,7 @@ fn main() {
     // 但是异常的Append是entry完全没有:
     // node_id: 3, msg.from: 3, msg.to:1, msg.type:MsgAppend, entries:[]
     // node_id: 3, msg.from: 3, msg.to:2, msg.type:MsgAppend, entries:[]
+    // NOTE: 已确认 raft_config.skip_bcast_commit参数影响的，设置成true则消失
 
     //
     // test a transfer leader
