@@ -117,8 +117,8 @@ impl KvServer {
     pub fn new(server_config: ServerConfig) -> (Self, RaftRouter) {
         let mut raft_config = Config::default();
         raft_config.id = server_config.run_id;
-        raft_config.heartbeat_tick = 30; // aka 3s
-        raft_config.election_tick = 60;  // aka 6s
+        raft_config.heartbeat_tick = 10; // aka 1s
+        raft_config.election_tick = 30;  // aka 3s
 
         let raft_store = MemStorage::new();
         let peers = server_config.to_peers();
