@@ -128,7 +128,7 @@ pub struct KvServer {
     pub route_table: Option<HashMap<u64, Sender<Message>>>,
 
     // kv store
-    kvstore: crossbeam_skiplist::SkipMap<Vec<u8>, Vec<u8>>,
+    pub kvstore: crossbeam_skiplist::SkipMap<Vec<u8>, Vec<u8>>,
 }
 
 impl KvServer {
@@ -248,8 +248,8 @@ impl KvServer {
                     if let Some(ref route_table) = self.route_table {
                         for msg in &ready.messages {
                             println!(
-                                "node_id: {}, msg.from: {}, msg.to:{}, msg.type:{:?}",
-                                self.server_config.run_id, msg.from, msg.to, msg.msg_type
+                                "node_id: {}, msg.from: {}, msg.to:{}, msg.type:{:?}, entries:{:?}",
+                                self.server_config.run_id, msg.from, msg.to, msg.msg_type, msg.entries
                             );
                             let sender = route_table.get(&msg.to).expect("unable find route");
                             sender.send(msg.clone()).unwrap();

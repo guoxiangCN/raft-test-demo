@@ -28,46 +28,68 @@ fn main() {
 
     let jh1 = std::thread::spawn(move || {
         kvserver1.run();
+        assert!(kvserver1.kvstore.is_empty());
     });
     let jh2 = std::thread::spawn(move || {
         kvserver2.run();
+        assert!(kvserver2.kvstore.is_empty());
     });
     let jh3 = std::thread::spawn(move || {
         kvserver3.run();
+        assert!(kvserver3.kvstore.is_empty());
     });
 
     // propose to leader, but we dont known the leader
     std::thread::sleep(Duration::from_millis(10000));
+     router1
+        .propose_raft_command(Command::Put(b"key1".to_vec(), b"val1".to_vec()))
+        .unwrap();
+     router1
+        .propose_raft_command(Command::Put(b"key2".to_vec(), b"val2".to_vec()))
+        .unwrap();
+     router1
+        .propose_raft_command(Command::Put(b"key3".to_vec(), b"val3".to_vec()))
+        .unwrap();
+
+    router1
+        .propose_raft_command(Command::Del(b"key3".to_vec()))
+        .unwrap();
     router1
         .propose_raft_command(Command::Del(b"key1".to_vec()))
         .unwrap();
-    router2
+    router1
         .propose_raft_command(Command::Del(b"key2".to_vec()))
         .unwrap();
-    router3
-        .propose_raft_command(Command::Del(b"key3".to_vec()))
-        .unwrap();
-     router3
-        .propose_raft_command(Command::Put(b"key4".to_vec(), b"val4".to_vec()))
-        .unwrap();
+
+    // TODO: 跑起来会多出一轮Append，不是成为leader的时刻, 需要研究清楚什么为什么产生的.
+    // 成为leader的场景是发送一条空Entry, data为空:
+    // node_id: 3, msg.from: 3, msg.to:2, msg.type:MsgAppend, entries:[term: 2 index: 4]
+    // 但是异常的Append是entry完全没有:
+    // node_id: 3, msg.from: 3, msg.to:1, msg.type:MsgAppend, entries:[]
+    // node_id: 3, msg.from: 3, msg.to:2, msg.type:MsgAppend, entries:[]
 
     //
     // test a transfer leader
-    for x in 0..100 {
-        let to = x % 3 + 1;
-        std::thread::sleep(Duration::from_secs(8));
-        println!("start to try transfer leader to {}...................", to);
-        let mut msg = Message::new();
-        msg.set_msg_type(raft::prelude::MessageType::MsgTransferLeader);
-        match to {
-            1 => &router1,
-            2 => &router2,
-            3 => &router3,
-            _ => panic!(),
-        }
-        .accept_raft_msg(msg)
-        .unwrap();
-    }
+    std::thread::sleep(Duration::from_secs(100));
+    // for x in 0..2 {
+    //     let to = x % 3 + 1;
+    //     std::thread::sleep(Duration::from_secs(8));
+    //     println!("start to try transfer leader to {}...................", to);
+    //     let mut msg = Message::new();
+    //     msg.set_msg_type(raft::prelude::MessageType::MsgTransferLeader);
+    //     match to {
+    //         1 => &router1,
+    //         2 => &router2,
+    //         3 => &router3,
+    //         _ => panic!(),
+    //     }
+    //     .accept_raft_msg(msg)
+    //     .unwrap();
+    // }
+
+    std::mem::drop(router1);
+    std::mem::drop(router2);
+    std::mem::drop(router3);
 
     jh1.join().unwrap();
     jh2.join().unwrap();
