@@ -105,7 +105,6 @@ impl RaftRouter {
 }
 
 pub struct KvServer {
-    run_id: u64,
     server_config: ServerConfig,
     raft_node: RawNode<MemStorage>,
     proposer_rx: Receiver<Command>,             // !Sync
@@ -131,7 +130,6 @@ impl KvServer {
         let (raft_msg_tx, raft_msg_rx) = std::sync::mpsc::channel();
         (
             Self {
-                run_id: server_config.run_id,
                 server_config: server_config,
                 raft_node: raft_node,
                 proposer_rx: rx,
